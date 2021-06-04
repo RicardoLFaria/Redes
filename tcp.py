@@ -53,6 +53,7 @@ class Servidor:
             corrigido = fix_checksum(seg, src_addr, dst_addr)
             self.rede.enviar(corrigido, dst_addr)
             conexao.seq_numero = conexao.seq_numero + 1
+            conexao.base = conexao.seq_numero
             # TODO: você precisa fazer o handshake aceitando a conexão. Escolha se você acha melhor
             # fazer aqui mesmo ou dentro da classe Conexao.
 
@@ -74,6 +75,7 @@ class Conexao:
         self.callback = None
         self.seq_numero = None
         self.ack_numero = None
+        self.base = None
         self.timer = asyncio.get_event_loop().call_later(1, self._exemplo_timer)  # um timer pode ser criado assim; esta linha é só um exemplo e pode ser removida
         #self.timer.cancel()   # é possível cancelar o timer chamando esse método; esta linha é só um exemplo e pode ser removida
 
@@ -92,10 +94,13 @@ class Conexao:
             return
         else:
             self.callback(self,payload)
+
+        self.ack_numero = self.ack_numero + len(payload)
         if (flags & FLAGS_FIN) == FLAGS_FIN:
             self.ack_numero += 1
             flags = FLAGS_FIN | FLAGS_ACK
-        self.ack_numero = self.ack_numero + len(payload)
+        elif len(payload) <= 0:
+            return
         dst_addr, dst_port, src_addr, src_port = self.id_conexao
         headerConexao = make_header(src_port, dst_port, self.seq_numero, self.ack_numero,flags)
         headerCorrigidoConexao = fix_checksum(headerConexao, src_addr, dst_addr)
@@ -116,7 +121,6 @@ class Conexao:
         # TODO: implemente aqui o envio de dados.
         # Chame self.servidor.rede.enviar(segmento, dest_addr) para enviar o segmento
         # que você construir para a camada de rede.
-        self.servidor.rede.fila.clear()
         ### Passo 3 ###
         src_addr, src_port, dst_addr, dst_port = self.id_conexao
         tamanho = (len(dados)/MSS)
