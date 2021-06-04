@@ -92,7 +92,9 @@ class Conexao:
             return
         else:
             self.callback(self,payload)
-        
+        if (flags & FLAGS_FIN) == FLAGS_FIN:
+            self.ack_numero += 1
+            flags = FLAGS_FIN | FLAGS_ACK
         self.ack_numero = self.ack_numero + len(payload)
         dst_addr, dst_port, src_addr, src_port = self.id_conexao
         headerConexao = make_header(src_port, dst_port, self.seq_numero, self.ack_numero,flags)
@@ -128,9 +130,11 @@ class Conexao:
             headerCorrigidoConexao  = fix_checksum(headerConexao + payload, dst_addr, src_addr)
             self.servidor.rede.enviar(headerCorrigidoConexao, src_addr)
             self.seq_numero = self.seq_numero + len(payload) 
+
     def fechar(self):
-        """
-        Usado pela camada de aplicação para fechar a conexão
-        """
-        # TODO: implemente aqui o fechamento de conexão
-        pass
+        flag = FLAGS_FIN
+        src_addr, src_port, dst_addr, dst_port = self.id_conexao
+        headerConexao = make_header(dst_port, src_port, self.seq_numero, self.seq_numero, flag)
+        headerCorrigidoConexao  = fix_checksum(headerConexao, dst_addr, src_addr)
+        self.servidor.rede.enviar(headerCorrigidoConexao, src_addr)
+        del self.servidor.conexoes[self.id_conexao]
